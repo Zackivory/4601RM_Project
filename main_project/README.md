@@ -129,8 +129,30 @@ from strategy import strategy
 recommended_price = strategy()
 ```
 
-## Extensibility
+## Simulator
 
+The `simulator_main_project` provides a testing environment to evaluate the performance of pricing strategies in a simulated market. The simulator allows for:
+
+
+1. **Controlled Testing** - Run strategies through various market scenarios to assess their effectiveness
+2. **Performance Analysis** - Compare revenue generation across different strategies over time
+3. **Market Dynamics** - Test how strategies adapt to different competitor behaviors
+
+The simulator works by:
+- Creating a virtual market with configurable demand patterns
+- Simulating competitor pricing behaviors based on defined models
+- Running your strategy against these conditions for multiple periods
+- Recording and analyzing the results including revenue, market share, and strategy adaptation
+
+To run a simulation:
+
+```
+python simulator_main_project.py --periods 50 --demand-model trend --competitor-models follower,aggressive,cyclic
+```
+
+The simulation results can be visualized using the included plotting utilities to track strategy performance over time.
+![combined_plots.png](../simulation_output/20250421_190829/combined_plots.png)
+## Extensibility
 The system is designed to be extensible. To add a new strategy:
 1. Implement the strategy function with the same parameter signature as existing strategies
 2. Add the strategy to the list in the `weighted_average` function

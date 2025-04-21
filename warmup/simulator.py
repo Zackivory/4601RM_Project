@@ -14,11 +14,11 @@ def simulate_rounds(num_rounds=1000, true_beta=0.5, seed=42):
     np.random.seed(seed)
 
     # Initialize historical data file
-    if os.path.exists('warmup/historical_data.csv'):
-        os.remove('warmup/historical_data.csv')
+    if os.path.exists('historical_data.csv'):
+        os.remove('historical_data.csv')
 
     # Write header row
-    with open('warmup/historical_data.csv', 'w') as f:
+    with open('historical_data.csv', 'w') as f:
         f.write("p_t,X_t\n")
 
     total_revenue = 0
@@ -38,7 +38,7 @@ def simulate_rounds(num_rounds=1000, true_beta=0.5, seed=42):
         X_t = np.random.binomial(1, prob_accept)
 
         # Record the outcome
-        with open('warmup/historical_data.csv', 'a') as f:
+        with open('historical_data.csv', 'a') as f:
             f.write(f"{p_t},{X_t}\n")
 
         # Update statistics

@@ -1,0 +1,6 @@
+parameter,value
+timestamp,20250421_190829
+periods,50
+num_competitors,3
+demand_model,"{'name': 'trend', 'params': {}}"
+competitor_models,"[{'name': 'follower', 'params': {'lag': 1, 'adjustment_factor': 0.95}}, {'name': 'aggressive', 'params': {'undercutting_factor': 0.85}}, {'name': 'cyclic', 'params': {'cycle_length': 20}}]"

@@ -8,7 +8,11 @@ def strategy():
     prices_path = os.path.join(os.pardir, 'historical_prices.csv')
     if os.path.exists(prices_path):
         # Properly read all team prices - each row is a period, each column is a team
-        all_team_prices = pd.read_csv(prices_path, header=None).values
+        prices_df = pd.read_csv(prices_path)
+        # Skip the period column and use only price columns
+        if 'period' in prices_df.columns:
+            prices_df = prices_df.drop(columns=['period'])
+        all_team_prices = prices_df.values
         # Our prices are in the first column (index 0)
         our_prices = all_team_prices[:, 0:1] if all_team_prices.size > 0 else np.empty((0,))
         price_hist = all_team_prices  # Keep all teams' prices for market analysis
@@ -18,7 +22,12 @@ def strategy():
 
     demand_path = 'historical_demands.csv'
     if os.path.exists(demand_path):
-        demand_hist = pd.read_csv(demand_path, header=None).values.flatten()
+        demands_df = pd.read_csv(demand_path)
+        # Get only the demand column
+        if 'demand' in demands_df.columns:
+            demand_hist = demands_df['demand'].values
+        else:
+            demand_hist = np.empty((0,))
     else:
         demand_hist = np.empty((0,))
         
@@ -40,8 +49,20 @@ def strategy():
         
         # Use the most recent period's prices from all teams
         last_period_prices = prices[-1]
+        
+        # Check for any non-numeric values and handle them
+        numeric_prices = []
+        for p in last_period_prices:
+            try:
+                numeric_prices.append(float(p))
+            except (ValueError, TypeError):
+                continue  # Skip non-numeric values
+                
+        if not numeric_prices:
+            return 50  # Default if no valid prices
+            
         # Calculate the mean price across all teams
-        avg = np.mean(last_period_prices)
+        avg = np.mean(numeric_prices)
         return int(np.clip(round(avg), 1, 100))
 
     def regression_optimal(prices=None, demands=None, our_prices_param=None):
@@ -63,7 +84,28 @@ def strategy():
 
         # Use only our prices for regression
         your_prices = our_prices_param.flatten()
-        y = demands
+        # Safely convert to numeric values
+        numeric_prices = []
+        numeric_demands = []
+        
+        # Make sure we have matching valid price and demand pairs
+        for i, p in enumerate(your_prices):
+            if i < len(demands):
+                try:
+                    price_val = float(p)
+                    demand_val = float(demands[i])
+                    numeric_prices.append(price_val)
+                    numeric_demands.append(demand_val)
+                except (ValueError, TypeError):
+                    continue
+                    
+        # Convert to numpy arrays
+        your_prices = np.array(numeric_prices)
+        y = np.array(numeric_demands)
+        
+        if len(y) < 5:  # Not enough valid data points
+            return follow_mean_price(prices)
+            
         X = np.vstack([np.ones_like(y), your_prices]).T
         coeffs, *_ = np.linalg.lstsq(X, y, rcond=None)
         a, b = coeffs
@@ -89,11 +131,36 @@ def strategy():
             return random_explore()
 
         # Use only our prices for UCB
-        revenues = our_prices_param.flatten() * demands
+        flat_prices = our_prices_param.flatten()
+        
+        # Safely convert to numeric values
+        numeric_prices = []
+        numeric_demands = []
+        
+        # Make sure we have matching valid price and demand pairs
+        for i, p in enumerate(flat_prices):
+            if i < len(demands):
+                try:
+                    price_val = float(p)
+                    demand_val = float(demands[i])
+                    numeric_prices.append(price_val)
+                    numeric_demands.append(demand_val)
+                except (ValueError, TypeError):
+                    continue
+        
+        # If no valid data, return random price
+        if not numeric_prices:
+            return random_explore()
+            
+        # Calculate revenues
+        our_prices_float = np.array(numeric_prices)
+        demands_float = np.array(numeric_demands)
+        revenues = our_prices_float * demands_float
+        
         counts = {}
         sums = {}
-        for i in range(T):
-            p = int(our_prices_param[i][0]) if our_prices_param.ndim > 1 else int(our_prices_param[i])
+        for i in range(len(numeric_prices)):
+            p = int(our_prices_float[i])
             counts[p] = counts.get(p, 0) + 1
             sums[p] = sums.get(p, 0) + revenues[i]
 
@@ -170,7 +237,7 @@ def strategy():
             # Get last period's price and demand
             last_price = our_prices[-1][0] if our_prices.ndim > 1 else our_prices[-1]  # Our price from last period
             last_demand = demand_hist[-1]  # Resulting demand
-            last_revenue = last_price * last_demand
+            last_revenue = int(last_price) * last_demand
             
             # Calculate what each strategy would have recommended last period
             temp_price_hist = price_hist[:-1]
@@ -193,7 +260,7 @@ def strategy():
             for rec_price in last_recommendations:
                 # Simple model: assume demand scales linearly with price difference
                 # More sophisticated models could be used here
-                price_ratio = rec_price / (last_price if last_price > 0 else 1)
+                price_ratio = float(rec_price) / (float(last_price) if float(last_price) > 0 else 1)
                 # Inverse relationship between price and demand
                 estimated_demand = last_demand * (2 - price_ratio) if price_ratio <= 2 else 0
                 estimated_revenue = rec_price * estimated_demand
